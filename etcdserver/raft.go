@@ -424,6 +424,7 @@ func startNode(cfg ServerConfig, cl *membership.RaftCluster, ids []types.ID) (id
 		MaxSizePerMsg:   maxSizePerMsg,
 		MaxInflightMsgs: maxInflightMsgs,
 		CheckQuorum:     true,
+		PreVote:         cfg.PreVote,
 	}
 
 	n = raft.StartNode(c, peers)
@@ -457,6 +458,7 @@ func restartNode(cfg ServerConfig, snapshot *raftpb.Snapshot) (types.ID, *member
 		MaxSizePerMsg:   maxSizePerMsg,
 		MaxInflightMsgs: maxInflightMsgs,
 		CheckQuorum:     true,
+		PreVote:         cfg.PreVote,
 	}
 
 	n := raft.RestartNode(c)
@@ -512,6 +514,7 @@ func restartAsStandaloneNode(cfg ServerConfig, snapshot *raftpb.Snapshot) (types
 		MaxSizePerMsg:   maxSizePerMsg,
 		MaxInflightMsgs: maxInflightMsgs,
 		CheckQuorum:     true,
+		PreVote:         cfg.PreVote,
 	}
 	n := raft.RestartNode(c)
 	raftStatus = n.Status

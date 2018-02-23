@@ -101,6 +101,9 @@ type ServerConfig struct {
 	InitialCorruptCheck bool
 	CorruptCheckTime    time.Duration
 
+	// PreVote is true to enable Raft Pre-Vote.
+	PreVote bool
+
 	Debug bool
 }
 

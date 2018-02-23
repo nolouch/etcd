@@ -259,6 +259,12 @@ type EtcdServer struct {
 // NewServer creates a new EtcdServer from the supplied configuration. The
 // configuration is considered static for the lifetime of the EtcdServer.
 func NewServer(cfg ServerConfig) (srv *EtcdServer, err error) {
+	if cfg.PreVote {
+		plog.Info("Raft Pre-Vote is enabled")
+	} else {
+		plog.Info("Raft Pre-Vote is disabled")
+	}
+
 	st := store.New(StoreClusterPrefix, StoreKeysPrefix)
 
 	var (
