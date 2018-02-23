@@ -225,6 +225,13 @@ type Config struct {
 	ExperimentalInitialCorruptCheck bool          `json:"experimental-initial-corrupt-check"`
 	ExperimentalCorruptCheckTime    time.Duration `json:"experimental-corrupt-check-time"`
 	ExperimentalEnableV2V3          string        `json:"experimental-enable-v2v3"`
+
+	// ExperimentalPreVote is true to enable Raft Pre-Vote.
+	// If enabled, Raft runs an additional election phase
+	// to check whether it would get enough votes to win
+	// an election, thus minimizing disruptions.
+	// TODO: change to "pre-vote" and enable by default in 3.5.
+	ExperimentalPreVote bool `json:"experimental-pre-vote"`
 }
 
 // configYAML holds the config suitable for yaml parsing
@@ -284,6 +291,7 @@ func NewConfig() *Config {
 		Metrics:                    "basic",
 		EnableV2:                   DefaultEnableV2,
 		AuthToken:                  "simple",
+		ExperimentalPreVote:        false, // TODO: enable by default in v3.5
 	}
 	cfg.InitialCluster = cfg.InitialClusterFromName(cfg.Name)
 	return cfg

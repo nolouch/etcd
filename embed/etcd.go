@@ -173,7 +173,10 @@ func StartEtcd(inCfg *Config) (e *Etcd, err error) {
 		AuthToken:                  cfg.AuthToken,
 		InitialCorruptCheck:        cfg.ExperimentalInitialCorruptCheck,
 		CorruptCheckTime:           cfg.ExperimentalCorruptCheckTime,
+		PreVote:                    cfg.ExperimentalPreVote,
 		Debug:                      cfg.Debug,
+	}
+
 	}
 
 	if e.Server, err = etcdserver.NewServer(srvcfg); err != nil {
