@@ -108,7 +108,7 @@ func (s *EtcdServer) Range(ctx context.Context, r *pb.RangeRequest) (*pb.RangeRe
 	}(time.Now())
 
 	if !r.Serializable {
-		err = s.linearizableReadNotify(ctx)
+		err = s.linearizableReadNotify(ctx, string(r.Key))
 		trace.Step("agreement among raft nodes before linearized reading")
 		if err != nil {
 			return nil, err
@@ -709,7 +709,7 @@ func (s *EtcdServer) linearizableReadLoop() {
 				plog.Errorf("failed to get read index from raft: %v", err)
 			}
 			readIndexFailed.Inc()
-			nr.notify(err)
+			nr.notify(err, id1)
 			continue
 		}
 		cancel()
@@ -749,14 +749,14 @@ func (s *EtcdServer) linearizableReadLoop() {
 				timeout = true
 				readIndexFailed.Inc()
 				// return a retryable error.
-				nr.notify(ErrLeaderChanged)
+				nr.notify(ErrLeaderChanged, id1)
 			case <-time.After(s.Cfg.ReqTimeout()):
 				if lg != nil {
 					lg.Warn("timed out waiting for read index response (local node might have slow network)", zap.Duration("timeout", s.Cfg.ReqTimeout()))
 				} else {
 					plog.Warningf("timed out waiting for read index response (local node might have slow network)")
 				}
-				nr.notify(ErrTimeout)
+				nr.notify(ErrTimeout, id1)
 				timeout = true
 				slowReadIndex.Inc()
 			case <-s.stopping:
@@ -775,11 +775,11 @@ func (s *EtcdServer) linearizableReadLoop() {
 			}
 		}
 		// unblock all l-reads requested at indices before rs.Index
-		nr.notify(nil)
+		nr.notify(nil, id1)
 	}
 }
 
-func (s *EtcdServer) linearizableReadNotify(ctx context.Context) error {
+func (s *EtcdServer) linearizableReadNotify(ctx context.Context, infos ...string) error {
 	s.readMu.RLock()
 	nc := s.readNotifier
 	s.readMu.RUnlock()
@@ -793,6 +793,14 @@ func (s *EtcdServer) linearizableReadNotify(ctx context.Context) error {
 	// wait for read state notification
 	select {
 	case <-nc.c:
+		if nc.uid > 0 {
+			lg := s.getLogger()
+			if lg != nil && nc.err != nil {
+				lg.Info("debug readindex, start request",
+					zap.Uint64("sent-request-id", nc.uid),
+					zap.Strings("req", infos))
+			}
+		}
 		return nc.err
 	case <-ctx.Done():
 		return ctx.Err()
