@@ -1088,6 +1088,7 @@ func stepLeader(r *raft, m pb.Message) error {
 		if !r.prs.IsSingleton() {
 			if r.raftLog.zeroTermOnErrCompacted(r.raftLog.term(r.raftLog.committed)) != r.Term {
 				// Reject read only request when this leader has not committed any log entry at its term.
+				r.logger.Infof("step leader %x debug readindex drop the readindex request for %x, uid: %x, term: %d", r.id, m.From, m.Entries[0].Data, r.raftLog.zeroTermOnErrCompacted(r.raftLog.term(r.raftLog.committed)))
 				return nil
 			}
 
