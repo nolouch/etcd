@@ -249,7 +249,7 @@ type msgWithResult struct {
 // node is the canonical implementation of the Node interface
 type node struct {
 	propc      chan msgWithResult
-	recvc      chan pb.Message
+	recvc      chan msgWithResult
 	confc      chan pb.ConfChangeV2
 	confstatec chan pb.ConfState
 	readyc     chan Ready
@@ -265,7 +265,7 @@ type node struct {
 func newNode(rn *RawNode) node {
 	return node{
 		propc:      make(chan msgWithResult),
-		recvc:      make(chan pb.Message),
+		recvc:      make(chan msgWithResult),
 		confc:      make(chan pb.ConfChangeV2),
 		confstatec: make(chan pb.ConfState),
 		readyc:     make(chan Ready),
@@ -346,10 +346,15 @@ func (n *node) run() {
 				pm.result <- err
 				close(pm.result)
 			}
-		case m := <-n.recvc:
+		case rm := <-n.recvc:
 			// filter out response message from unknown From.
+			m := rm.m
 			if pr := r.prs.Progress[m.From]; pr != nil || !IsResponseMsg(m.Type) {
-				r.Step(m)
+				err := r.Step(m)
+				if rm.result != nil {
+					rm.result <- err
+					close(rm.result)
+				}
 			}
 		case cc := <-n.confc:
 			_, okBefore := r.prs.Progress[r.id]
@@ -452,14 +457,31 @@ func (n *node) stepWait(ctx context.Context, m pb.Message) error {
 // if any.
 func (n *node) stepWithWaitOption(ctx context.Context, m pb.Message, wait bool) error {
 	if m.Type != pb.MsgProp {
+		rm := msgWithResult{m: m}
+		if m.Type == pb.MsgReadIndex {
+			rm.result = make(chan error, 1)
+		}
 		select {
-		case n.recvc <- m:
-			return nil
+		case n.recvc <- rm:
+			if !wait {
+				return nil
+			}
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-n.done:
 			return ErrStopped
 		}
+		select {
+		case err := <-rm.result:
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-n.done:
+			return ErrStopped
+		}
+		return nil
 	}
 	ch := n.propc
 	pm := msgWithResult{m: m}
@@ -522,8 +544,9 @@ func (n *node) Status() Status {
 }
 
 func (n *node) ReportUnreachable(id uint64) {
+	m := pb.Message{Type: pb.MsgUnreachable, From: id}
 	select {
-	case n.recvc <- pb.Message{Type: pb.MsgUnreachable, From: id}:
+	case n.recvc <- msgWithResult{m: m}:
 	case <-n.done:
 	}
 }
@@ -532,7 +555,7 @@ func (n *node) ReportSnapshot(id uint64, status SnapshotStatus) {
 	rej := status == SnapshotFailure
 
 	select {
-	case n.recvc <- pb.Message{Type: pb.MsgSnapStatus, From: id, Reject: rej}:
+	case n.recvc <- msgWithResult{m: pb.Message{Type: pb.MsgSnapStatus, From: id, Reject: rej}}:
 	case <-n.done:
 	}
 }
@@ -540,7 +563,7 @@ func (n *node) ReportSnapshot(id uint64, status SnapshotStatus) {
 func (n *node) TransferLeadership(ctx context.Context, lead, transferee uint64) {
 	select {
 	// manually set 'from' and 'to', so that leader can voluntarily transfers its leadership
-	case n.recvc <- pb.Message{Type: pb.MsgTransferLeader, From: transferee, To: lead}:
+	case n.recvc <- msgWithResult{m: pb.Message{Type: pb.MsgTransferLeader, From: transferee, To: lead}}:
 	case <-n.done:
 	case <-ctx.Done():
 	}
