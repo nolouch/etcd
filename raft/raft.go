@@ -1099,15 +1099,19 @@ func stepLeader(r *raft, m pb.Message) error {
 			case ReadOnlyLeaseBased:
 				ri := r.raftLog.committed
 				if m.From == None || m.From == r.id { // from local member
+					r.logger.Infof("step leader %x debug readindex no progress available for %x, uid: %x", r.id, m.From, m.Entries[0].Data)
 					r.readStates = append(r.readStates, ReadState{Index: ri, RequestCtx: m.Entries[0].Data})
 				} else {
+					r.logger.Infof("step leader %x debug readindex no progress available for %x, uid: %x", r.id, m.From, m.Entries[0].Data)
 					r.send(pb.Message{To: m.From, Type: pb.MsgReadIndexResp, Index: ri, Entries: m.Entries})
 				}
 			}
 		} else { // only one voting member (the leader) in the cluster
 			if m.From == None || m.From == r.id { // from leader itself
+				r.logger.Infof("step leader %x debug readindex no progress available for %x, uid: %x", r.id, m.From, m.Entries[0].Data)
 				r.readStates = append(r.readStates, ReadState{Index: r.raftLog.committed, RequestCtx: m.Entries[0].Data})
 			} else { // from learner member
+				r.logger.Infof("step leader %x debug readindex no progress available for %x, uid: %x", r.id, m.From, m.Entries[0].Data)
 				r.send(pb.Message{To: m.From, Type: pb.MsgReadIndexResp, Index: r.raftLog.committed, Entries: m.Entries})
 			}
 		}
@@ -1203,8 +1207,10 @@ func stepLeader(r *raft, m pb.Message) error {
 		for _, rs := range rss {
 			req := rs.req
 			if req.From == None || req.From == r.id { // from local member
+				r.logger.Infof("step leader %x debug readindex no progress available for %x, uid: %x", r.id, m.From, req.Entries[0].Data)
 				r.readStates = append(r.readStates, ReadState{Index: rs.index, RequestCtx: req.Entries[0].Data})
 			} else {
+				r.logger.Infof("step leader %x debug readindex no progress available for %x, uid: %x", r.id, m.From, req.Entries)
 				r.send(pb.Message{To: req.From, Type: pb.MsgReadIndexResp, Index: rs.index, Entries: req.Entries})
 			}
 		}
@@ -1372,6 +1378,8 @@ func stepFollower(r *raft, m pb.Message) error {
 			r.logger.Errorf("%x invalid format of MsgReadIndexResp from %x, entries count: %d", r.id, m.From, len(m.Entries))
 			return nil
 		}
+
+		r.logger.Infof("step follower %x debug readindex no progress available for %x, uid: %x", r.id, m.From, m.Entries[0].Data)
 		r.readStates = append(r.readStates, ReadState{Index: m.Index, RequestCtx: m.Entries[0].Data})
 	}
 	return nil

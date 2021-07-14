@@ -718,6 +718,11 @@ func (s *EtcdServer) linearizableReadLoop() {
 			timeout bool
 			done    bool
 		)
+		if lg != nil {
+			lg.Info("debug readindex, start request",
+				zap.Uint64("sent-request-id", id1),
+			)
+		}
 		for !timeout && !done {
 			select {
 			case rs = <-s.r.readStateC:
