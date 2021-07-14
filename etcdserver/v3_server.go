@@ -796,9 +796,10 @@ func (s *EtcdServer) linearizableReadNotify(ctx context.Context, infos ...string
 		if nc.uid > 0 {
 			lg := s.getLogger()
 			if lg != nil && nc.err != nil {
-				lg.Info("debug readindex, start request",
+				lg.Info("debug readindex, failed for the request",
 					zap.Uint64("sent-request-id", nc.uid),
-					zap.Strings("req", infos))
+					zap.Strings("req", infos),
+					zap.Error(nc.err))
 			}
 		}
 		return nc.err

@@ -37,13 +37,15 @@ type readIndexStatus struct {
 }
 
 type readOnly struct {
+	logger           Logger
 	option           ReadOnlyOption
 	pendingReadIndex map[string]*readIndexStatus
 	readIndexQueue   []string
 }
 
-func newReadOnly(option ReadOnlyOption) *readOnly {
+func newReadOnly(option ReadOnlyOption, l Logger) *readOnly {
 	return &readOnly{
+		logger:           l,
 		option:           option,
 		pendingReadIndex: make(map[string]*readIndexStatus),
 	}
@@ -55,6 +57,7 @@ func newReadOnly(option ReadOnlyOption) *readOnly {
 // `m` is the original read only request message from the local or remote node.
 func (ro *readOnly) addRequest(index uint64, m pb.Message) {
 	s := string(m.Entries[0].Data)
+	ro.logger.Infof("debug readindex, add the pending index: %d ctx: %s - %x", index, s, s)
 	if _, ok := ro.pendingReadIndex[s]; ok {
 		return
 	}
@@ -100,6 +103,7 @@ func (ro *readOnly) advance(m pb.Message) []*readIndexStatus {
 		}
 	}
 
+	ro.logger.Infof("debug readindex advance ctx: %s - %x, found %v", ctx, ctx, found)
 	if found {
 		ro.readIndexQueue = ro.readIndexQueue[i:]
 		for _, rs := range rss {

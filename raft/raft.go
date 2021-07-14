@@ -354,7 +354,7 @@ func newRaft(c *Config) *raft {
 		logger:                    c.Logger,
 		checkQuorum:               c.CheckQuorum,
 		preVote:                   c.PreVote,
-		readOnly:                  newReadOnly(c.ReadOnlyOption),
+		readOnly:                  newReadOnly(c.ReadOnlyOption, c.Logger),
 		disableProposalForwarding: c.DisableProposalForwarding,
 	}
 
@@ -545,6 +545,9 @@ func (r *raft) bcastHeartbeat() {
 }
 
 func (r *raft) bcastHeartbeatWithCtx(ctx []byte) {
+	if len(ctx) > 0 {
+		r.logger.Infof("debug readindex, bcastHeartbeat ctx: %s - %x", ctx, ctx)
+	}
 	r.prs.Visit(func(id uint64, _ *tracker.Progress) {
 		if id == r.id {
 			return
@@ -629,7 +632,8 @@ func (r *raft) reset(term uint64) {
 
 	r.pendingConfIndex = 0
 	r.uncommittedSize = 0
-	r.readOnly = newReadOnly(r.readOnly.option)
+	r.logger.Info("debug readindex: reset readonly", r.readOnly.readIndexQueue)
+	r.readOnly = newReadOnly(r.readOnly.option, r.logger)
 }
 
 func (r *raft) appendEntry(es ...pb.Entry) (accepted bool) {
@@ -1207,10 +1211,10 @@ func stepLeader(r *raft, m pb.Message) error {
 		for _, rs := range rss {
 			req := rs.req
 			if req.From == None || req.From == r.id { // from local member
-				r.logger.Infof("step leader %x debug readindex no progress available for %x, uid: %x", r.id, m.From, req.Entries[0].Data)
+				r.logger.Infof("step leader %x push local readStates for the index for %x, uid: %x", r.id, m.From, req.Entries[0].Data)
 				r.readStates = append(r.readStates, ReadState{Index: rs.index, RequestCtx: req.Entries[0].Data})
 			} else {
-				r.logger.Infof("step leader %x debug readindex no progress available for %x, uid: %x", r.id, m.From, req.Entries)
+				r.logger.Infof("step leader %x send readindex response to %x, uid: %x", r.id, m.From, req.Entries[0].Data)
 				r.send(pb.Message{To: req.From, Type: pb.MsgReadIndexResp, Index: rs.index, Entries: req.Entries})
 			}
 		}
