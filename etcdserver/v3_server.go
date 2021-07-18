@@ -697,12 +697,6 @@ func (s *EtcdServer) linearizableReadLoop() {
 		s.readMu.Unlock()
 
 		lg := s.getLogger()
-		if lg != nil {
-			lg.Info("debug readindex, start request",
-				zap.Uint64("sent-request-id", id1),
-			)
-		}
-
 		cctx, cancel := context.WithTimeout(context.Background(), s.Cfg.ReqTimeout())
 		if err := s.r.ReadIndex(cctx, ctxToSend); err != nil {
 			cancel()

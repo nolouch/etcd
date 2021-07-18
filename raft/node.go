@@ -463,7 +463,7 @@ func (n *node) stepWithWaitOption(ctx context.Context, m pb.Message, wait bool) 
 		}
 		select {
 		case n.recvc <- rm:
-			if !wait {
+			if !wait || rm.result == nil {
 				return nil
 			}
 		case <-ctx.Done():
